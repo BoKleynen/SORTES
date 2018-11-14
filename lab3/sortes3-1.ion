@@ -1,0 +1,155 @@
+#include <Arduino_FreeRTOS.h>
+#include <EEPROM.h>
+
+
+struct TemperatureRecord {
+  double temperature;
+};
+
+// define two tasks for Blink & AnalogRead
+void TaskBlink( void *pvParameters );
+void TaskAnalogRead( void *pvParameters );
+void addRecord(TemperatureRecord record);
+struct TemperatureRecord getLastRecord();
+double GetTemp(double readDelay);
+
+// the setup function runs once when you press reset or power the board
+void setup() {
+
+  // Now set up two tasks to run independently.
+  xTaskCreate(
+    TaskReadLast
+    ,  (const portCHAR *)"ReadLastRecord"   // A name just for humans
+    ,  128  // Stack size
+    ,  NULL
+    ,  2  // priority
+    ,  NULL );
+
+  xTaskCreate(
+    TaskReadTemp
+    ,  (const portCHAR *) "ReadTemperature"
+    ,  128 // This stack size can be checked & adjusted by reading Highwater
+    ,  NULL
+    ,  1  // priority
+    ,  NULL );
+
+  // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
+}
+
+void loop()
+{
+  // Empty. Things are done in Tasks.
+}
+
+/*--------------------------------------------------*/
+/*---------------------- Tasks ---------------------*/
+/*--------------------------------------------------*/
+
+void TaskReadLast(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+  Serial.begin(9600);
+
+  for (;;) // A Task shall never return or exit.
+  {
+    TemperatureRecord record = getLastRecord();
+    vTaskDelay( 1000 / portTICK_PERIOD_MS ); // wait for one second
+  }
+}
+
+void TaskReadTemp(void *pvParameters)  // This is a task.
+{
+  (void) pvParameters;
+
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+  double readDelay = 20;
+  for (;;)
+  {
+    // read the input on analog pin 0:
+    double temp = GetTemp(readDelay);
+    addRecord({temp});
+    // print out the value you read:
+    //Serial.println(temp);
+    vTaskDelay((500-readDelay) / portTICK_PERIOD_MS);  // one tick delay (15ms) in between reads for stability
+  }
+}
+
+double GetTemp(double readDelay)
+{
+  unsigned int wADC;
+  double t;
+
+  // The internal temperature has to be used
+  // with the internal reference of 1.1V.
+  // Channel 8 can not be selected with
+  // the analogRead function yet.
+
+  // Set the internal reference and mux.
+  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX2) | _BV(MUX1) | _BV(MUX0)); // http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7766-8-bit-AVR-ATmega16U4-32U4_Datasheet.pdf
+  ADCSRB |= _BV(MUX5);
+  ADCSRA |= _BV(ADEN);  // enable the ADC
+
+  delay(readDelay);            // wait for voltages to become stable.
+
+  ADCSRA |= _BV(ADSC);  // Start the ADC
+
+  // Detect end-of-conversion
+  while (bit_is_set(ADCSRA,ADSC));
+
+  // Reading register "ADCW" takes care of how to read ADCL and ADCH.
+  wADC = ADCL + (ADCH << 8);
+  //Serial.println(wADC);
+  // The offset of 324.31 could be wrong. It is just an indication.
+  t = (wADC - 280.31 ) / 1.22;
+
+  // The returned temperature is in degrees Celcius.
+  return (t);
+}
+
+void addRecord(TemperatureRecord record){
+  int lastIndex;
+  EEPROM.get(0, lastIndex);
+  int newIndex = (lastIndex + 1) & 15;
+  EEPROM.put((newIndex) * sizeof(struct TemperatureRecord), record);
+  EEPROM.put(0, newIndex);
+  Serial.print("Written ");
+  Serial.print(record.temperature);
+  Serial.print(" to ");
+  Serial.println(newIndex);
+}
+
+struct TemperatureRecord getLastRecord(){
+  int lastIndex;
+  TemperatureRecord record;
+  EEPROM.get(0, lastIndex);
+  EEPROM.get(lastIndex * sizeof(struct TemperatureRecord), record);
+  
+  Serial.print("Read from ");
+  Serial.print(lastIndex);
+  Serial.print(" :");
+  Serial.println(record.temperature);
+
+  return record;
+}
+
+/*
+void loop() {
+  Serial.println
+  if (Serial.available() == 0) {
+    delay(5000);
+    struct Record record = {latestKey, 20.0};
+    EEPROM.put(++latestKey * sizeof(struct Record), record);
+    EEPROM.put(0, latestKey);
+  } else {
+    String input = Serial.readStringUntil('\n');
+    if (input == "last") {
+      struct Record record;
+      EEPROM.get((latestKey-1) * sizeof(struct Record), record);
+      Serial.println("Record: ");
+      Serial.println(record.primaryKey);
+      Serial.println(record.temperature);
+    }
+  }
+}*/
+   
