@@ -6,12 +6,16 @@ const byte airbagDeployement = 13;
 void collisionISR(void);
 double getTemp();
 
+TaskHandle_t realtimeTaskHandle;
+
 void setup() {
   pinMode(airbagDeployement, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
 
   Serial.begin(9600);
   while(!Serial); // waits for serial to be available
+
+  xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
 }
 
 // freeRTOS runs loop when no other task is available
@@ -21,7 +25,24 @@ void loop() {
 }
 
 void collisionISR(void) {
+  // Resume the suspended task.
+  //Serial.println(F("Resuming Realtime task from ISR"));
+  int xYieldRequired = xTaskResumeFromISR(realtimeTaskHandle);
+  //Serial.println(xYieldRequired);
+  if(xYieldRequired == 1)
+  {
+     taskYIELD();
+  }
+}
+
+static void realtimeTask(void* pvParameters)
+{
+  Serial.println(F("Realtime task Running"));
+  vTaskSuspend(realtimeTaskHandle);
+  Serial.println(F("Deploying airbag"));
   digitalWrite(airbagDeployement, HIGH);
+  Serial.println(F("Back in realtime task and About to delete itself"));
+  vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
 // Temperature in degrees Celsius
@@ -50,7 +71,7 @@ double getTemp(void) {
 
   // Reading register "ADCW" takes care of how to read ADCL and ADCH.
   wADC = ADCL + (ADCH << 8);
-  //Serial.println(wADC);
+  // Serial.println(wADC);
   // The offset of 324.31 could be wrong. It is just an indication.
   t = (wADC - 280.31 ) / 1.22;
 
