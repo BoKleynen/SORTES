@@ -13,7 +13,7 @@ Database db;
 TaskHandle_t realtimeTaskHandle;
 
 void setup() {
-  pinMode(resetPing, INPUT);
+  pinMode(reset, INPUT);
   pinMode(airbagDeployement, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
 
