@@ -1,16 +1,30 @@
 #include <Arduino_FreeRTOS.h>
+#include <EEPROM.h>
+#include "database.h"
 
+const byte reset = 5;
 const byte collisionDetector = 7;
 const byte airbagDeployement = 13;
 
 void collisionISR(void);
 double getTemp();
 
+Database db;
 TaskHandle_t realtimeTaskHandle;
 
 void setup() {
+  pinMode(resetPing, INPUT);
   pinMode(airbagDeployement, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
+
+  // setup database
+  if (digitalRead(reset) == HIGH) {
+    db = new Database();
+  } else {
+    db = new Database(EEPROM.read(0));
+  }
+
+  // TODO: store 1 record in setup
 
   Serial.begin(9600);
   while(!Serial); // waits for serial to be available
