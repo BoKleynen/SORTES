@@ -5,41 +5,35 @@
 #define dbOffset 1
 
 // Public functions
-
 Database::Database(byte head = 0, int nRecords = 0): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
   if (xSemaphore == NULL) {
     ;
   }
 }
 
-/*
- * Reads the last record of the database in the EEPROM memory.
- * To read the last value we dont need to acquire a lock since the head is only incremented after a write.
- */
-float Database::readLast() {
+float Database::read(byte index) {
   float record;
-  EEPROM.get(this->physicalAddress(this->head), record);
+  EEPROM.get(this->physicalAddress(index), record);
   return record;
 }
 
-/*
- * args:
- *    res: pointer to an array that can hold at least 128 records, 
- *         this function will return the actual amount of records written
- */
-byte Database::readAll(float *res) {
+void Database::printLast(void) {
+  Serial.println(this->read(this->head));
+}
+
+void Database::printAll(void) {
   int i;
-  byte nRecords = 0;
+  float record;
   if (this->nRecords > 128) {
     for (i=this->head+1; i <= 127; i++) {
-      EEPROM.get(this->physicalAddress(i), res[i]);
+      Serial.println(this->read(i));
     }
 
     nRecords += 128 - (this->head + 1);
   }
 
   for (i=0; i <= this->head; i++) {
-    EEPROM.get(this->physicalAddress(i), res[i]);
+    Serial.println(this->read(i));
   }
 }
 
@@ -50,6 +44,7 @@ struct Args {
 
 void Database::write(float rec) {
   Args *args = new Args { this, rec };
+  
   xTaskCreate([] (void *_args) -> void {
     Args *args = (Args *) _args;
     if (xSemaphoreTake(args->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
@@ -61,7 +56,11 @@ void Database::write(float rec) {
       vTaskDelete(NULL);
     }
   }, 
-  "DB WRITE", 10, (void *) args, 2, NULL);
+  "DB WRITE", 
+  10, 
+  (void *) args, 
+  2, 
+  NULL);
 }
 
 // Private functions

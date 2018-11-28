@@ -6,9 +6,10 @@ class Database {
 public:
   Database(byte head = 0, int nRecords = 0);
   float readLast();
-  byte readAll(float *res);
+  float read(byte index);
   void write(float rec);
-  
+  void printAll(void);
+  void printLast(void);
 private:
   // stores the index of the last written record
   byte head;
