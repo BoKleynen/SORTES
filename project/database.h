@@ -1,11 +1,13 @@
 #include <Arduino_FreeRTOS.h>
+#include <semphr.h>
+#include <Arduino.h>
 
 class Database {
 public:
-  Database(byte);
+  Database(byte head = 0, int nRecords = 0);
   float readLast();
-  byte readAll(float *res)
-  void write(const *byte rec);
+  byte readAll(float *res);
+  void write(float rec);
   
 private:
   // stores the index of the last written record

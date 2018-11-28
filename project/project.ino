@@ -19,9 +19,13 @@ void setup() {
 
   // setup database
   if (digitalRead(reset) == HIGH) {
-    db = new Database();
+    db = Database();
   } else {
-    db = new Database(EEPROM.read(0));
+    int nRecords;
+    byte head;
+    EEPROM.get(1, nRecords);
+    EEPROM.get(0, head);
+    db = Database(head, nRecords);
   }
 
   // TODO: store 1 record in setup
