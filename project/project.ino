@@ -8,6 +8,7 @@ const byte airbagDeployement = 13;
 
 void collisionISR(void);
 double getTemp();
+void serialCommand();
 
 Database db;
 TaskHandle_t realtimeTaskHandle;
@@ -95,4 +96,18 @@ double getTemp(void) {
 
   // The returned temperature is in degrees Celcius.
   return (t);
+}
+
+void serialCommand(char command) {
+  switch(command) {
+    case '1':
+      db.printLast();
+      break;
+    case '2':
+      // low power mode
+      break;
+    case '3':
+    db.printAll();
+      break;
+  }
 }
