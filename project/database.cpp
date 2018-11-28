@@ -5,11 +5,11 @@
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 
 
-inline double calcTemp(unsigned int value){
+inline double calcTemp(unsigned int value) {
   return (value - 280.31 ) / 1.22;
 }
 
-inline void print(unsigned int value){
+inline void print(unsigned int value) {
   Serial.println(calcTemp(value));
 }
 
@@ -35,12 +35,12 @@ void Database::printAll(void) {
   int i;
   unsigned int record;
   if (this->nRecords > 256) {
-    for (i=this->head+1; i < 256; i++) {
+    for (i = this->head + 1; i < 256; i++) {
       print(this->read(i));
     }
   }
 
-  for (i=0; i <= this->head; i++) {
+  for (i = 0; i <= this->head; i++) {
     print(this->read(i));
   }
 }
@@ -50,14 +50,17 @@ struct Args {
   unsigned int rec;
 };
 
-void Database::write(unsigned int rec) {  
-  Args *args = &Args {this, rec};
-  xTaskCreate(this->writeTask, 
-  "DB WRITE", 
-  10, 
-  (void *) args, 
-  2, 
-  NULL);
+void Database::write(unsigned int rec) {
+  EEPROM.put(this->physicalAddress(this->head + 1), rec);
+  this->incrementNRecords();
+  this->incrementHead();
+  /*Args *args = &Args {this, rec};
+  xTaskCreate(this->writeTask,
+              "DB WRITE",
+              10,
+              (void *) args,
+              2,
+              NULL);*/
 }
 
 // Private functions
@@ -78,10 +81,10 @@ void Database::incrementNRecords() {
 static void Database::writeTask(void *args) {
   Args *a = (Args *) args;
   if (xSemaphoreTake(a->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
-      EEPROM.put(a->db->physicalAddress(a->db->head + 1), * ((unsigned int*) args));
-      a->db->incrementNRecords();
-      a->db->incrementHead();
-      xSemaphoreGive(a->db->xSemaphore);
-      vTaskDelete(NULL);
-    }
+    EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
+    a->db->incrementNRecords();
+    a->db->incrementHead();
+    xSemaphoreGive(a->db->xSemaphore);
+    vTaskDelete(NULL);
+  }
 }

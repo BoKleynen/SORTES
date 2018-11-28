@@ -40,6 +40,30 @@ void setup() {
 
   // TODO: store 1 record in setup
 
+  setupTimer();
+
+
+  //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
+
+  Serial.begin(9600);
+
+  xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
+}
+
+// freeRTOS runs loop when no other task is available
+void loop() {
+  delay(1000);
+  Serial.println("In LOOP");
+  //sleepWhenIdle();
+
+
+  if (Serial.available()) {
+    serialCommand(Serial.read());
+  }
+
+}
+
+void setupTimer() {
   // Setup timer interrupts
   cli();//stop interrupts
   // p104 van docs
@@ -56,25 +80,6 @@ void setup() {
   // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
   sei();//allow interrupts
-
-  //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-  attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
-  Serial.begin(9600);
-
-  xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
-}
-
-// freeRTOS runs loop when no other task is available
-void loop() {
-  delay(1000);
-  //Serial.println(getTemp(), 1);
-  //sleepWhenIdle();
-
-
-  if (Serial.available()) {
-    serialCommand(Serial.read());
-  }
-
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -100,20 +105,24 @@ void sleepWhenAsked() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
   taskENTER_CRITICAL();
   wdt_disable();
+  attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
   sleep_enable();
 
   // sleep_bod_disable();
   taskEXIT_CRITICAL();
   sleep_mode();
-  sleep_reset(); // disable sleep...
+  sleep_disable(); // disable sleep...
+  detachInterrupt(digitalPinToInterrupt(wakeUpPin));
   wdt_enable(WDTO_15MS);
-  // detachInterrupt(digitalPinToInterrupt(wakeUpPin));
+  setupTimer();
+  // vTaskStartScheduler();
+
   // wakeUpISR code will not be executed
   Serial.println("just woke up////");
 }
 
 void wakeUpISR() {
-  Serial.println("in ISR");
+  //Serial.println("in ISR");
   //sleep_disable();
   // detachInterrupt(digitalPinToInterrupt(wakeUpPin));
 }
