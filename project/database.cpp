@@ -2,60 +2,57 @@
 #include <EEPROM.h>
 #include <Arduino_FreeRTOS.h>
 
-#define dbOffset 1
+#define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
+
+
+inline double calcTemp(unsigned int value){
+  return (value - 280.31 ) / 1.22;
+}
+
+inline void print(unsigned int value){
+  Serial.println(calcTemp(value));
+}
 
 // Public functions
-Database::Database(byte head = 0, int nRecords = 0): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
+Database::Database(byte head = -1, int nRecords = 0): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
   if (xSemaphore == NULL) {
     ;
   }
 }
 
-float Database::read(byte index) {
-  float record;
+unsigned int Database::read(byte index) {
+  unsigned int record;
   EEPROM.get(this->physicalAddress(index), record);
   return record;
 }
 
 void Database::printLast(void) {
-  Serial.println(this->read(this->head));
+  Serial.println("Reading last");
+  print(this->read(this->head));
 }
 
 void Database::printAll(void) {
   int i;
-  float record;
-  if (this->nRecords > 128) {
-    for (i=this->head+1; i <= 127; i++) {
-      Serial.println(this->read(i));
+  unsigned int record;
+  if (this->nRecords > 256) {
+    for (i=this->head+1; i < 256; i++) {
+      print(this->read(i));
     }
-
-    nRecords += 128 - (this->head + 1);
   }
 
   for (i=0; i <= this->head; i++) {
-    Serial.println(this->read(i));
+    print(this->read(i));
   }
 }
 
 struct Args {
   Database *db;
-  float rec;
+  unsigned int rec;
 };
 
-void Database::write(float rec) {
-  Args *args = new Args { this, rec };
-  
-  xTaskCreate([] (void *_args) -> void {
-    Args *args = (Args *) _args;
-    if (xSemaphoreTake(args->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
-      EEPROM.put(args->db->physicalAddress(args->db->head + 1), args->rec);
-      args->db->nRecords++;
-      args->db->incrementHead();
-      xSemaphoreGive(args->db->xSemaphore);
-      delete args;
-      vTaskDelete(NULL);
-    }
-  }, 
+void Database::write(unsigned int rec) {  
+  Args *args = &Args {this, rec};
+  xTaskCreate(this->writeTask, 
   "DB WRITE", 
   10, 
   (void *) args, 
@@ -65,10 +62,26 @@ void Database::write(float rec) {
 
 // Private functions
 inline int Database::physicalAddress(byte index) {
-  return ((int) index << 2) + dbOffset;
+  return ((int) index << 1) + dbOffset;
 }
 
 void Database::incrementHead() {
-  this->head = (this->head + 1) & 127;
+  this->head++;
   EEPROM.put(0, this->head);
+}
+
+void Database::incrementNRecords() {
+  this->nRecords++;
+  EEPROM.put(1, this->nRecords);
+}
+
+static void Database::writeTask(void *args) {
+  Args *a = (Args *) args;
+  if (xSemaphoreTake(a->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
+      EEPROM.put(a->db->physicalAddress(a->db->head + 1), * ((unsigned int*) args));
+      a->db->incrementNRecords();
+      a->db->incrementHead();
+      xSemaphoreGive(a->db->xSemaphore);
+      vTaskDelete(NULL);
+    }
 }

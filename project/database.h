@@ -4,10 +4,10 @@
 
 class Database {
 public:
-  Database(byte head = 0, int nRecords = 0);
-  float readLast();
-  float read(byte index);
-  void write(float rec);
+  Database(byte head = -1, int nRecords = 0);
+  unsigned int readLast();
+  unsigned int read(byte index);
+  void write(unsigned int rec);
   void printAll(void);
   void printLast(void);
 private:
@@ -22,6 +22,7 @@ private:
   
   inline int physicalAddress(byte index);
   inline int headAddress();
+  static void writeTask(void *args);
   void incrementHead();
-  void _write();
+  void incrementNRecords();
 };
