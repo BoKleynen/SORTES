@@ -57,6 +57,7 @@ void Database::write(float rec) {
       args->db->nRecords++;
       args->db->incrementHead();
       xSemaphoreGive(args->db->xSemaphore);
+      free (args);
       vTaskDelete(NULL);
     }
   }, 
