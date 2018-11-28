@@ -60,6 +60,7 @@ void loop() {
   if (Serial.available()) {
     serialCommand(Serial.read());
   }
+  Serial.println("after just woke up////");
 
 }
 
@@ -104,7 +105,7 @@ void sleepWhenAsked() {
   Serial.println("sleeping");
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
   taskENTER_CRITICAL();
-  wdt_disable();
+  vPortEndScheduler(); // wdt disable
   attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
   sleep_enable();
 
@@ -113,7 +114,9 @@ void sleepWhenAsked() {
   sleep_mode();
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
-  wdt_enable(WDTO_15MS);
+  wdt_reset();
+  wdt_interrupt_enable( portUSE_WDTO );
+
   setupTimer();
   // vTaskStartScheduler();
 
