@@ -1,6 +1,5 @@
 #include "database.h"
 #include <EEPROM.h>
-#include <Arduino_FreeRTOS.h>
 
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 
@@ -14,10 +13,8 @@ inline void print(unsigned int value) {
 }
 
 // Public functions
-Database::Database(byte head = -1, int nRecords = 0): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
-  if (xSemaphore == NULL) {
-    ;
-  }
+Database::Database(byte head = -1, int nRecords = 0, unsigned int initialRecord = NULL): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
+    // TODO: store 1 record in setup  
 }
 
 unsigned int Database::read(byte index) {
@@ -51,16 +48,9 @@ struct Args {
 };
 
 void Database::write(unsigned int rec) {
-  EEPROM.put(this->physicalAddress(this->head + 1), rec);
-  this->incrementNRecords();
-  this->incrementHead();
-  /*Args *args = &Args {this, rec};
-  xTaskCreate(this->writeTask,
-              "DB WRITE",
-              10,
-              (void *) args,
-              2,
-              NULL);*/
+//  Args *args = new Args {this, rec};
+Serial.println(F("write function"));
+  xTaskCreate(Database::writeTask, "DB WRITE", 50, NULL, 2, NULL);
 }
 
 // Private functions
@@ -79,12 +69,22 @@ void Database::incrementNRecords() {
 }
 
 static void Database::writeTask(void *args) {
-  Args *a = (Args *) args;
-  if (xSemaphoreTake(a->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
-    EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
-    a->db->incrementNRecords();
-    a->db->incrementHead();
-    xSemaphoreGive(a->db->xSemaphore);
+//  Args *a = (Args *) args;
+// EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
+//    a->db->incrementNRecords();
+//    a->db->incrementHead();
+    Serial.println(F("write task"));
+//    delete a;
     vTaskDelete(NULL);
-  }
+
+    
+//  if (xSemaphoreTake(a->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
+//    Serial.println("got sem");
+//    EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
+//    a->db->incrementNRecords();
+//    a->db->incrementHead();
+//    xSemaphoreGive(a->db->xSemaphore);
+//    Serial.println("released sem");
+//    vTaskDelete(NULL);
+//  }
 }

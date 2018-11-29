@@ -38,8 +38,6 @@ void setup() {
     db = Database(head, nRecords);
   }
 
-  // TODO: store 1 record in setup
-
   setupTimer();
 
 
@@ -60,7 +58,7 @@ void loop() {
   if (Serial.available()) {
     serialCommand(Serial.read());
   }
-  Serial.println("after just woke up////");
+//  Serial.println("after just woke up////");
 
 }
 
@@ -86,7 +84,9 @@ void setupTimer() {
 ISR(TIMER1_COMPA_vect) {
   unsigned int t = getTemp();
   //Serial.println(t);
-  Serial.println("TIMER");
+//  Serial.println("TIMER");
+//  db.write(t);
+//  Args *args = new Args {this, rec};
   db.write(t);
 }
 
@@ -102,7 +102,7 @@ void sleepWhenAsked() {
   ACSR |= _BV(ACD);
   digitalWrite(LED_BUILTIN, LOW);
 
-  Serial.println("sleeping");
+//  Serial.println("sleeping");
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
   taskENTER_CRITICAL();
   vPortEndScheduler(); // wdt disable
@@ -121,7 +121,7 @@ void sleepWhenAsked() {
   // vTaskStartScheduler();
 
   // wakeUpISR code will not be executed
-  Serial.println("just woke up////");
+//  Serial.println("just woke up////");
 }
 
 void wakeUpISR() {
@@ -145,9 +145,9 @@ static void realtimeTask(void* pvParameters)
 {
   Serial.println(F("Realtime task Running"));
   vTaskSuspend(realtimeTaskHandle);
-  Serial.println(F("Deploying airbag"));
+//  Serial.println(F("Deploying airbag"));
   digitalWrite(airbagDeployement, HIGH);
-  Serial.println(F("Back in realtime task and About to delete itself"));
+//  Serial.println(F("Back in realtime task and About to delete itself"));
   vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
@@ -188,7 +188,7 @@ void serialCommand(char command) {
       db.printLast();
       break;
     case '2':
-      Serial.println("Serial: Entering Sleep mode");
+//      Serial.println("Serial: Entering Sleep mode");
       delay(100);     // this delay is needed, the sleep
       //function will provoke a Serial error otherwise!!
       sleepWhenAsked();     // sleep function called here
