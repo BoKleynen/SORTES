@@ -4,13 +4,13 @@
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 
 // Public functions
-Database::Database(byte head = -1, int nRecords = 0, unsigned int initialRecord = NULL): 
-  head(head), 
+Database::Database(byte head = -1, int nRecords = 0):
+  head(head),
   xSemaphore(xSemaphoreCreateBinary()),
   queueHandle(xQueueCreate(4, sizeof(unsigned int))),
   nRecords(nRecords)
 {
-    xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
+  xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
 }
 
 unsigned int Database::read(byte index) {
@@ -45,18 +45,17 @@ void Database::write(unsigned int rec) {
 
 // Private functions
 static void Database::writeTask(void *dbArg) {
-  auto db = (Database *const) dbArg;
+  auto db = (Database * const) dbArg;
   unsigned int record;
-  Serial.println(db->head);
-  
-  for(;;) {
-    if(xQueueReceive(db->queueHandle, &record, portMAX_DELAY)) {
+
+  for (;;) {
+    if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE) {
       delay(10);
-      Serial.println("wirte task: ");
-      Serial.println(*record); 
-//      EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
-//      a->db->incrementNRecords();
-//      a->db->incrementHead();
+      EEPROM.put(db->physicalAddress(db->head + 1), record);
+      db->incrementNRecords();
+      db->incrementHead();
+      Serial.println(record);
+      Serial.flush();
     }
   }
 }
