@@ -8,7 +8,8 @@
 
 class Database {
   public:
-    Database(byte head = -1, int nRecords = 0);
+    Database();
+    Database(byte head, int nRecords);
     void write(unsigned int rec);
     void printAll(void);
     void printLast(void);

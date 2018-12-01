@@ -4,7 +4,16 @@
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 
 // Public functions
-Database::Database(byte head = -1, int nRecords = 0):
+Database::Database(): 
+  head(-1),
+  xSemaphore(xSemaphoreCreateBinary()),
+  queueHandle(xQueueCreate(4, sizeof(unsigned int))),
+  nRecords(0)
+{
+  xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
+}
+
+Database::Database(byte head, int nRecords):
   head(head),
   xSemaphore(xSemaphoreCreateBinary()),
   queueHandle(xQueueCreate(4, sizeof(unsigned int))),
