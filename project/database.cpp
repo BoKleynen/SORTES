@@ -3,18 +3,23 @@
 
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 
-
-inline double calcTemp(unsigned int value) {
-  return (value - 280.31 ) / 1.22;
-}
-
-inline void print(unsigned int value) {
-  Serial.println(calcTemp(value));
-}
-
 // Public functions
-Database::Database(byte head = -1, int nRecords = 0, unsigned int initialRecord = NULL): head(head), xSemaphore(xSemaphoreCreateBinary()), nRecords(nRecords) {
-    // TODO: store 1 record in setup  
+Database::Database(): 
+  head(-1),
+  xSemaphore(xSemaphoreCreateBinary()),
+  queueHandle(xQueueCreate(4, sizeof(unsigned int))),
+  nRecords(0)
+{
+  xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
+}
+
+Database::Database(byte head, int nRecords):
+  head(head),
+  xSemaphore(xSemaphoreCreateBinary()),
+  queueHandle(xQueueCreate(4, sizeof(unsigned int))),
+  nRecords(nRecords)
+{
+  xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
 }
 
 unsigned int Database::read(byte index) {
@@ -24,8 +29,7 @@ unsigned int Database::read(byte index) {
 }
 
 void Database::printLast(void) {
-  Serial.println("Reading last");
-  print(this->read(this->head));
+  Serial.println(calcTemp(this->read(this->head)));
 }
 
 void Database::printAll(void) {
@@ -33,27 +37,42 @@ void Database::printAll(void) {
   unsigned int record;
   if (this->nRecords > 256) {
     for (i = this->head + 1; i < 256; i++) {
-      print(this->read(i));
+      Serial.println(calcTemp(this->read(i)));
     }
   }
 
   for (i = 0; i <= this->head; i++) {
-    print(this->read(i));
+    Serial.println(calcTemp(this->read(i)));
   }
 }
 
-struct Args {
-  Database *db;
-  unsigned int rec;
-};
 
 void Database::write(unsigned int rec) {
-//  Args *args = new Args {this, rec};
-Serial.println(F("write function"));
-  xTaskCreate(Database::writeTask, "DB WRITE", 50, NULL, 2, NULL);
+  Serial.println(F("write function"));
+  xQueueSendToBackFromISR(this->queueHandle, &rec, NULL);
 }
 
 // Private functions
+static void Database::writeTask(void *dbArg) {
+  auto db = (Database * const) dbArg;
+  unsigned int record;
+
+  for (;;) {
+    if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE) {
+      delay(10);
+      EEPROM.put(db->physicalAddress(db->head + 1), record);
+      db->incrementNRecords();
+      db->incrementHead();
+      Serial.println(record);
+      Serial.flush();
+    }
+  }
+}
+
+static inline double Database::calcTemp(unsigned int value) {
+  return (value - 280.31 ) / 1.22;
+}
+
 inline int Database::physicalAddress(byte index) {
   return ((int) index << 1) + dbOffset;
 }
@@ -66,25 +85,4 @@ void Database::incrementHead() {
 void Database::incrementNRecords() {
   this->nRecords++;
   EEPROM.put(1, this->nRecords);
-}
-
-static void Database::writeTask(void *args) {
-//  Args *a = (Args *) args;
-// EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
-//    a->db->incrementNRecords();
-//    a->db->incrementHead();
-    Serial.println(F("write task"));
-//    delete a;
-    vTaskDelete(NULL);
-
-    
-//  if (xSemaphoreTake(a->db->xSemaphore, portMAX_DELAY) == pdTRUE) {
-//    Serial.println("got sem");
-//    EEPROM.put(a->db->physicalAddress(a->db->head + 1), a->rec);
-//    a->db->incrementNRecords();
-//    a->db->incrementHead();
-//    xSemaphoreGive(a->db->xSemaphore);
-//    Serial.println("released sem");
-//    vTaskDelete(NULL);
-//  }
 }
