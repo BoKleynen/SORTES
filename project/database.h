@@ -53,7 +53,7 @@ class Database {
     int nRecords;
 
     // semaphore handle
-    SemaphoreHandle_t xSemaphore;
+    SemaphoreHandle_t mutex;
 
     // Queue handle
     QueueHandle_t queueHandle;

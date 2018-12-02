@@ -6,7 +6,7 @@
 // Public functions
 Database::Database(): 
   head(-1),
-  xSemaphore(xSemaphoreCreateBinary()),
+  mutex(xSemaphoreCreateMutex()),
   queueHandle(xQueueCreate(4, sizeof(unsigned int))),
   nRecords(0)
 {
@@ -14,7 +14,7 @@ Database::Database():
 }
 
 Database::Database(bool useStored):
-  xSemaphore(xSemaphoreCreateBinary()),
+  mutex(xSemaphoreCreateMutex()),
   queueHandle(xQueueCreate(4, sizeof(unsigned int)))
 {
   if (useStored) {
@@ -44,22 +44,24 @@ void Database::printAll(void) {
   register int i;
   register int a = 255 + this->head;
   unsigned int record;
-  Serial.println(this->head);
-  Serial.println(this->nRecords);
-  if (this->nRecords > 256) {
-    for (i = this->head + 1; i < 256; i++) {
+  if (xSemaphoreTake(this->mutex, portMAX_DELAY) == pdTRUE) {
+    if (this->nRecords > 256) {
+      for (i = this->head + 1; i < 256; i++) {
+        Serial.print(F("record "));
+        Serial.print(this->nRecords - a + i);
+        Serial.print(F(": "));
+        Serial.println(calcTemp(this->read(i)));
+      }
+    }
+  
+    for (i = 0; i <= this->head; i++) {
       Serial.print(F("record "));
-      Serial.print(this->nRecords - a + i);
+      Serial.print(this->nRecords - this->head + i);
       Serial.print(F(": "));
       Serial.println(calcTemp(this->read(i)));
     }
-  }
 
-  for (i = 0; i <= this->head; i++) {
-    Serial.print(F("record "));
-    Serial.print(this->nRecords - this->head + i);
-    Serial.print(F(": "));
-    Serial.println(calcTemp(this->read(i)));
+    xSemaphoreGive(this->mutex);
   }
 }
 
@@ -74,12 +76,13 @@ static void Database::writeTask(void *dbArg) {
   unsigned int record;
 
   for (;;) {
-    if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE) {
+    if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE && xSemaphoreTake(db->mutex, portMAX_DELAY) == pdTRUE) {
       delay(10);  // not sure why but doesn't work without
       EEPROM.put(db->physicalAddress(db->head + 1), record);
       db->incrementNRecords();
       db->incrementHead();
       delay(10); // not sure why but doesn't work without
+      xSemaphoreGive(db->mutex);
     }
   }
 }
