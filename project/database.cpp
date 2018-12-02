@@ -29,6 +29,9 @@ unsigned int Database::read(byte index) {
 }
 
 void Database::printLast(void) {
+  Serial.print(F("record "));
+  Serial.print(this->nRecords);
+  Serial.print(F(": "));
   Serial.println(calcTemp(this->read(this->head)));
 }
 
@@ -37,11 +40,17 @@ void Database::printAll(void) {
   unsigned int record;
   if (this->nRecords > 256) {
     for (i = this->head + 1; i < 256; i++) {
+      Serial.print(F("record "));
+      Serial.print(this->nRecords - 256 + i);
+      Serial.print(F(": "));
       Serial.println(calcTemp(this->read(i)));
     }
   }
 
   for (i = 0; i <= this->head; i++) {
+    Serial.print(F("record "));
+    Serial.print(this->nRecords - this->head + i);
+    Serial.print(F(": "));
     Serial.println(calcTemp(this->read(i)));
   }
 }
