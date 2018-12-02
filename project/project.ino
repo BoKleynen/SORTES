@@ -3,6 +3,7 @@
 #include "database.h"
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <avr/power.h>
 
 #define collisionDetector 3
 #define airbagDeployement 12
@@ -14,6 +15,10 @@ unsigned int getTemp();
 
 Database db;
 TaskHandle_t realtimeTaskHandle;
+
+#ifndef power_timer4_disable
+    #define power_timer4_disable()  (PRR1 |= _BV(4))
+#endif
 
 void setup() {
   delay(2000);
@@ -31,8 +36,9 @@ void setup() {
   setupTimer();
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-  PRR0 &= ~_BV(PRTIM0); // Disable timer 0
-  PRR1 &= ~_BV(PRTIM3); // Disable timer 3
+  power_timer0_disable(); // Disable timer 0
+  power_timer3_disable(); // Disable timer 3
+  power_timer4_disable(); // Disable timer 4
   Serial.begin(9600);
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
@@ -113,16 +119,10 @@ void sleepWhenAsked() {
   wdt_interrupt_enable( portUSE_WDTO );
 
   setupTimer();
-  // vTaskStartScheduler();
-
-  // wakeUpISR code will not be executed
-  //  Serial.println("just woke up");
 }
 
 void wakeUpISR() {
-  //Serial.println("in ISR");
-  //sleep_disable();
-  // detachInterrupt(digitalPinToInterrupt(wakeUpPin));
+  
 }
 
 void collisionISR(void) {
@@ -145,7 +145,7 @@ static void realtimeTask(void* pvParameters)
   vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
-// Temperature in degrees Celsius
+// Temperature reading
 unsigned int getTemp(void) {
   unsigned int wADC;
   double t;
@@ -171,7 +171,6 @@ unsigned int getTemp(void) {
 
   // Reading register "ADCW" takes care of how to read ADCL and ADCH.
   wADC = ADCL + (ADCH << 8);
-  // Serial.println(wADC);
 
   return wADC;
 }
