@@ -7,11 +7,10 @@
 #define collisionDetector 3
 #define airbagDeployement 12
 #define wakeUpPin 2
-#define reset 5
+#define databaseReset 5
 
 void collisionISR(void);
-double getTemp();
-void serialCommand();
+unsigned int getTemp();
 
 Database db;
 TaskHandle_t realtimeTaskHandle;
@@ -20,7 +19,7 @@ void setup() {
   delay(2000);
   while (!Serial); // waits for serial to be available
 
-  pinMode(reset, INPUT);
+  pinMode(databaseReset, INPUT);
   pinMode(airbagDeployement, OUTPUT);
   pinMode(wakeUpPin, INPUT_PULLUP);
   pinMode(collisionISR, INPUT_PULLUP);
@@ -28,7 +27,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   // setup database
-  db = Database(digitalRead(reset) == LOW);
+  db = Database(digitalRead(databaseReset) == HIGH);
   setupTimer();
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
@@ -42,9 +41,20 @@ void setup() {
 // freeRTOS runs loop when no other task is available
 void loop() {
   if (Serial.available()) {
-    serialCommand(Serial.read());
+    switch (Serial.read()) {
+      case '1':
+        db.printLast();
+        break;
+      case '2':
+        Serial.println("Serial: Entering Sleep mode");
+        delay(100);           // this delay is needed, the sleep function will provoke a Serial error otherwise!!
+        sleepWhenAsked();     // sleep function called here
+        break;
+      case '3':
+        db.printAll();
+        break;
+    }
   }
-  //  Serial.println("after just woke up");
   
   sleepWhenIdle();
 }
@@ -69,9 +79,7 @@ void setupTimer() {
 }
 
 ISR(TIMER1_COMPA_vect) {
-  unsigned int t = getTemp();
-  //  Serial.println("TIMER");
-  db.write(t);
+  db.write(getTemp());
 }
 
 void sleepWhenIdle() {
@@ -138,7 +146,7 @@ static void realtimeTask(void* pvParameters)
 }
 
 // Temperature in degrees Celsius
-double getTemp(void) {
+unsigned int getTemp(void) {
   unsigned int wADC;
   double t;
 
@@ -166,21 +174,4 @@ double getTemp(void) {
   // Serial.println(wADC);
 
   return wADC;
-}
-
-void serialCommand(char command) {
-  switch (command) {
-    case '1':
-      db.printLast();
-      break;
-    case '2':
-      Serial.println("Serial: Entering Sleep mode");
-      delay(100);     // this delay is needed, the sleep
-      //function will provoke a Serial error otherwise!!
-      sleepWhenAsked();     // sleep function called here
-      break;
-    case '3':
-      db.printAll();
-      break;
-  }
 }

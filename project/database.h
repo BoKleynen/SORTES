@@ -23,11 +23,11 @@ class Database {
 
     /*
      * Creates a new Database object.
-     * If useStored == true then the database will be recreated from EEPROM.
-     * Otherwise a new Database is created with head pointing at -1 and
+     * If reset == true then  a new Database is created with head pointing at -1 and
      * nRecords set to 0.
+     * Otherwise the database will be recreated from EEPROM.
      */
-    Database(bool useStored);
+    Database(bool reset);
 
     /*
      * Writes a record to the database at the next position, 
@@ -52,19 +52,20 @@ class Database {
     // amount of records that have been stored in the database; only the last 128 are available
     int nRecords;
 
-    // semaphore handle
+    // handle to the mutex for writing to and reading from EEPROM
     SemaphoreHandle_t mutex;
 
     // Queue handle
     QueueHandle_t queueHandle;
 
+
     static void writeTask(void *args);
     static inline double calcTemp(unsigned int value);
+
     inline int physicalAddress(byte index);
-    inline int headAddress();
-    void incrementHead();
-    void incrementNRecords();
-    unsigned int readLast();
+    inline int headAddress(void);
+    void incrementHead(void);
+    void incrementNRecords(void);
     unsigned int read(byte index);
 };
 
