@@ -28,18 +28,8 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   // setup database
-  if (digitalRead(reset) == HIGH) {
-    db = Database();
-  } else {
-    int nRecords;
-    byte head;
-    EEPROM.get(1, nRecords);
-    EEPROM.get(0, head);
-    db = Database(head, nRecords);
-  }
-
+  db = Database(digitalRead(reset) == LOW);
   setupTimer();
-
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
 

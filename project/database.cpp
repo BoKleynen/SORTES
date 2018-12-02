@@ -13,12 +13,17 @@ Database::Database():
   xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
 }
 
-Database::Database(byte head, int nRecords):
-  head(head),
+Database::Database(bool useStored):
   xSemaphore(xSemaphoreCreateBinary()),
-  queueHandle(xQueueCreate(4, sizeof(unsigned int))),
-  nRecords(nRecords)
+  queueHandle(xQueueCreate(4, sizeof(unsigned int)))
 {
+  if (useStored) {
+    EEPROM.get(0, head);
+    EEPROM.get(1, nRecords);
+  } else {
+    head = -1;
+    nRecords = 0;
+  }
   xTaskCreate(Database::writeTask, "WRITE TASK", 100, (void *) this, 2, NULL);
 }
 
