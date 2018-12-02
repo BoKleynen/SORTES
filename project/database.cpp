@@ -48,7 +48,6 @@ void Database::printAll(void) {
 
 
 void Database::write(unsigned int rec) {
-  Serial.println(F("write function"));
   xQueueSendToBackFromISR(this->queueHandle, &rec, NULL);
 }
 
@@ -59,12 +58,11 @@ static void Database::writeTask(void *dbArg) {
 
   for (;;) {
     if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE) {
-      delay(10);
+      delay(10);  // not sure why but doesn't work without
       EEPROM.put(db->physicalAddress(db->head + 1), record);
       db->incrementNRecords();
       db->incrementHead();
-      Serial.println(record);
-      Serial.flush();
+      delay(10); // not sure why but doesn't work without
     }
   }
 }

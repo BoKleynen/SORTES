@@ -138,7 +138,6 @@ void collisionISR(void) {
 
 static void realtimeTask(void* pvParameters)
 {
-  Serial.println(F("Realtime task Running"));
   vTaskSuspend(realtimeTaskHandle);
   //  Serial.println(F("Deploying airbag"));
   digitalWrite(airbagDeployement, HIGH);
