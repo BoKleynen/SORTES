@@ -41,12 +41,15 @@ void Database::printLast(void) {
 }
 
 void Database::printAll(void) {
-  int i;
+  register int i;
+  register int a = 255 + this->head;
   unsigned int record;
+  Serial.println(this->head);
+  Serial.println(this->nRecords);
   if (this->nRecords > 256) {
     for (i = this->head + 1; i < 256; i++) {
       Serial.print(F("record "));
-      Serial.print(this->nRecords - 256 + i);
+      Serial.print(this->nRecords - a + i);
       Serial.print(F(": "));
       Serial.println(calcTemp(this->read(i)));
     }
