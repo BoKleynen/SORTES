@@ -36,9 +36,9 @@ void setup() {
   setupTimer();
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-  power_timer0_disable(); // Disable timer 0
-  power_timer3_disable(); // Disable timer 3
-  power_timer4_disable(); // Disable timer 4
+  //power_timer0_disable(); // Disable timer 0
+  //power_timer3_disable(); // Disable timer 3
+  //power_timer4_disable(); // Disable timer 4
   Serial.begin(9600);
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
@@ -61,8 +61,7 @@ void loop() {
         break;
     }
   }
-  
-  sleepWhenIdle();
+  //sleepWhenIdle();
 }
 
 void setupTimer() {
