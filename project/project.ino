@@ -32,7 +32,8 @@ void setup() {
   setupTimer();
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-
+  PRR0 &= ~_BV(PRTIM0); // Disable timer 0
+  PRR1 &= ~_BV(PRTIM3); // Disable timer 3
   Serial.begin(9600);
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
@@ -40,14 +41,12 @@ void setup() {
 
 // freeRTOS runs loop when no other task is available
 void loop() {
-  //sleepWhenIdle();
-
-
   if (Serial.available()) {
     serialCommand(Serial.read());
   }
   //  Serial.println("after just woke up");
-
+  
+  sleepWhenIdle();
 }
 
 void setupTimer() {
@@ -76,7 +75,9 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 void sleepWhenIdle() {
-
+  set_sleep_mode(SLEEP_MODE_IDLE);
+  sleep_mode();
+  sleep_disable();
 }
 
 void sleepWhenAsked() {
@@ -99,6 +100,7 @@ void sleepWhenAsked() {
   sleep_mode();
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
+  Serial.println("Woke up");
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
 
