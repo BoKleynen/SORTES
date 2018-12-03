@@ -38,8 +38,8 @@ void setup() {
   setupTimer();
 
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-  PRR0 &= ~_BV(PRTIM0); // Disable timer 0
-  PRR1 &= ~_BV(PRTIM3); // Disable timer 3
+  PRR1 |= _BV(PRTIM3); // Disable timer 3
+  PRR1 |= _BV(4); // Disable timer 4
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
 }
