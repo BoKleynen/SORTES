@@ -9,8 +9,12 @@
 #define wakeUpPin 2
 #define databaseReset 5
 
+#define sleepTest 8
+
 void collisionISR(void);
 unsigned int getTemp();
+
+bool sleeping = false;
 
 Database db;
 TaskHandle_t realtimeTaskHandle;
@@ -18,22 +22,24 @@ TaskHandle_t realtimeTaskHandle;
 void setup() {
   delay(2000);
   while (!Serial); // waits for serial to be available
+  Serial.begin(9600);
 
   pinMode(databaseReset, INPUT);
   pinMode(airbagDeployement, OUTPUT);
   pinMode(wakeUpPin, INPUT_PULLUP);
   pinMode(collisionISR, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(sleepTest, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(sleepTest, LOW);
 
   // setup database
   db = Database(digitalRead(databaseReset) == HIGH);
   setupTimer();
 
-  //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
+  attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
   PRR0 &= ~_BV(PRTIM0); // Disable timer 0
   PRR1 &= ~_BV(PRTIM3); // Disable timer 3
-  Serial.begin(9600);
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
 }
@@ -46,7 +52,6 @@ void loop() {
         db.printLast();
         break;
       case '2':
-        Serial.println("Serial: Entering Sleep mode");
         delay(100);           // this delay is needed, the sleep function will provoke a Serial error otherwise!!
         sleepWhenAsked();     // sleep function called here
         break;
@@ -94,54 +99,55 @@ void sleepWhenAsked() {
 
   ACSR &= ~_BV(ACIE);
   ACSR |= _BV(ACD);
-  digitalWrite(LED_BUILTIN, LOW);
-
-  Serial.println("sleeping");
+  digitalWrite(LED_BUILTIN, HIGH);
+ 
+//  digitalWrite(sleepTest, HIGH);
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
   taskENTER_CRITICAL();
   vPortEndScheduler(); // wdt disable
   attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
   sleep_enable();
-
   // sleep_bod_disable();
   taskEXIT_CRITICAL();
+  sleeping = true;
   sleep_mode();
+
+  
+  
+  // vTaskStartScheduler();
+
+  // wakeUpISR code will not be executed
+}
+
+void wakeUpISR() {
+  wakeUp();
+}
+
+void wakeUp() {
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
-  Serial.println("Woke up");
+//  digitalWrite(sleepTest, LOW);
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
 
   setupTimer();
-  // vTaskStartScheduler();
-
-  // wakeUpISR code will not be executed
-  //  Serial.println("just woke up");
-}
-
-void wakeUpISR() {
-  //Serial.println("in ISR");
-  //sleep_disable();
-  // detachInterrupt(digitalPinToInterrupt(wakeUpPin));
+  sleeping = false;
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void collisionISR(void) {
   // Resume the suspended task.
-  //Serial.println(F("Resuming Realtime task from ISR"));
+  if (sleeping) 
+    wakeUp();
+    
   int xYieldRequired = xTaskResumeFromISR(realtimeTaskHandle);
-  //Serial.println(xYieldRequired);
-  if (xYieldRequired == 1)
-  {
+  if (xYieldRequired == 1) 
     taskYIELD();
-  }
 }
 
-static void realtimeTask(void* pvParameters)
-{
+static void realtimeTask(void* pvParameters) {
   vTaskSuspend(realtimeTaskHandle);
-  //  Serial.println(F("Deploying airbag"));
   digitalWrite(airbagDeployement, HIGH);
-  //  Serial.println(F("Back in realtime task and About to delete itself"));
   vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
@@ -171,7 +177,6 @@ unsigned int getTemp(void) {
 
   // Reading register "ADCW" takes care of how to read ADCL and ADCH.
   wADC = ADCL + (ADCH << 8);
-  // Serial.println(wADC);
 
   return wADC;
 }
