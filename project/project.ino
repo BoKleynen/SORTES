@@ -124,6 +124,8 @@ void wakeUpISR() {
 }
 
 void wakeUp() {
+  sleeping = false;
+  digitalWrite(LED_BUILTIN, LOW);
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
 //  digitalWrite(sleepTest, LOW);
@@ -131,8 +133,6 @@ void wakeUp() {
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
   setupTimer();
-  sleeping = false;
-  digitalWrite(LED_BUILTIN, LOW);
 
   
 }
