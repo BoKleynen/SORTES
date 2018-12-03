@@ -20,8 +20,8 @@ Database db;
 TaskHandle_t realtimeTaskHandle;
 
 void setup() {
-  delay(2000);
-  while (!Serial); // waits for serial to be available
+  //delay(2000);
+  //while (!Serial); // waits for serial to be available
   Serial.begin(9600);
 
   pinMode(databaseReset, INPUT);
@@ -127,35 +127,36 @@ void wakeUp() {
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
 //  digitalWrite(sleepTest, LOW);
+  
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
-
   setupTimer();
   sleeping = false;
   digitalWrite(LED_BUILTIN, LOW);
+
+  
 }
 
 void collisionISR(void) {
   // Resume the suspended task.
   if (sleeping) 
     wakeUp();
-    
-  int xYieldRequired = xTaskResumeFromISR(realtimeTaskHandle);
-  if (xYieldRequired == 1) 
-    taskYIELD();
+
+  xTaskResumeFromISR(realtimeTaskHandle);
+  detachInterrupt(digitalPinToInterrupt(collisionDetector));
+  //if (xTaskResumeFromISR(realtimeTaskHandle) == pdTRUE) 
+  //taskYIELD();
 }
 
 static void realtimeTask(void* pvParameters) {
   vTaskSuspend(realtimeTaskHandle);
-  digitalWrite(airbagDeployement, HIGH);
+  digitalWrite(airbagDeployement, HIGH);  
   vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
 // Temperature in degrees Celsius
 unsigned int getTemp(void) {
   unsigned int wADC;
-  double t;
-
   // The internal temperature has to be used
   // with the internal reference of 1.1V.
   // Channel 8 can not be selected with

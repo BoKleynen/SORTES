@@ -88,6 +88,8 @@ static void Database::writeTask(void *dbArg) {
       delay(10); // not sure why but doesn't work without
       xSemaphoreGive(db->mutex);
     }
+    else
+      vTaskDelay(10);
   }
 }
 
