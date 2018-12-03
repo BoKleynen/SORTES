@@ -1,4 +1,5 @@
 #include <Arduino_FreeRTOS.h>
+#include <semphr.h>
 #include <EEPROM.h>
 #include "database.h"
 #include <avr/sleep.h>
@@ -9,6 +10,11 @@
 #define wakeUpPin 2
 #define databaseReset 5
 
+// Declare a mutex Semaphore Handle which we will use to manage the Serial Port.
+// It will be used to ensure only only one Task is accessing this resource at any time.
+SemaphoreHandle_t xSerialSemaphore;
+
+
 void collisionISR(void);
 unsigned int getTemp();
 
@@ -16,8 +22,19 @@ Database db;
 TaskHandle_t realtimeTaskHandle;
 
 void setup() {
-  delay(2000);
+  //delay(2000);
+  Serial.begin(115200);
   while (!Serial); // waits for serial to be available
+
+  // Semaphores are useful to stop a Task proceeding, where it should be paused to wait,
+  // because it is sharing a resource, such as the Serial port.
+  // Semaphores should only be used whilst the scheduler is running, but we can set it up here.
+  if ( xSerialSemaphore == NULL )  // Check to confirm that the Serial Semaphore has not already been created.
+  {
+    xSerialSemaphore = xSemaphoreCreateMutex();  // Create a mutex semaphore we will use to manage the Serial Port
+    if ( ( xSerialSemaphore ) != NULL )
+      xSemaphoreGive( ( xSerialSemaphore ) );  // Make the Serial Port available for use, by "Giving" the Semaphore.
+  }
 
   pinMode(databaseReset, INPUT);
   pinMode(airbagDeployement, OUTPUT);
@@ -31,31 +48,34 @@ void setup() {
   setupTimer();
 
   //attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
-  PRR0 &= ~_BV(PRTIM0); // Disable timer 0
-  PRR1 &= ~_BV(PRTIM3); // Disable timer 3
-  Serial.begin(9600);
+
 
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
 }
 
 // freeRTOS runs loop when no other task is available
 void loop() {
-  if (Serial.available()) {
-    switch (Serial.read()) {
-      case '1':
-        db.printLast();
-        break;
-      case '2':
-        Serial.println("Serial: Entering Sleep mode");
-        delay(100);           // this delay is needed, the sleep function will provoke a Serial error otherwise!!
-        sleepWhenAsked();     // sleep function called here
-        break;
-      case '3':
-        db.printAll();
-        break;
+  if ( xSemaphoreTake( xSerialSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+  {
+    if (Serial.available()) {
+      switch (Serial.read()) {
+        case '1':
+          db.printLast();
+          break;
+        case '2':
+          Serial.println("Serial: Entering Sleep mode");
+          delay(100);           // this delay is needed, the sleep function will provoke a Serial error otherwise!!
+          sleepWhenAsked();     // sleep function called here
+          break;
+        case '3':
+          db.printAll();
+          break;
+      }
     }
+    xSemaphoreGive( xSerialSemaphore ); // Now free or "Give" the Serial Port for others.
   }
-  
+
+
   sleepWhenIdle();
 }
 
@@ -95,20 +115,24 @@ void sleepWhenAsked() {
   ACSR &= ~_BV(ACIE);
   ACSR |= _BV(ACD);
   digitalWrite(LED_BUILTIN, LOW);
+  if ( xSemaphoreTake( xSerialSemaphore, ( TickType_t ) 5 ) == pdTRUE )
+  {
+    Serial.println("sleeping");
 
-  Serial.println("sleeping");
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
-  taskENTER_CRITICAL();
-  vPortEndScheduler(); // wdt disable
-  attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
-  sleep_enable();
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+    taskENTER_CRITICAL();
+    vPortEndScheduler(); // wdt disable
+    attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
+    sleep_enable();
 
-  // sleep_bod_disable();
-  taskEXIT_CRITICAL();
-  sleep_mode();
-  sleep_disable(); // disable sleep...
-  detachInterrupt(digitalPinToInterrupt(wakeUpPin));
-  Serial.println("Woke up");
+    // sleep_bod_disable();
+    taskEXIT_CRITICAL();
+    sleep_mode();
+    sleep_disable(); // disable sleep...
+    detachInterrupt(digitalPinToInterrupt(wakeUpPin));
+    Serial.println("Woke up");
+    xSemaphoreGive( xSerialSemaphore ); // Now free or "Give" the Serial Port for others.
+  }
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
 
