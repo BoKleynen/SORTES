@@ -52,7 +52,9 @@ void loop() {
         db.printLast();
         break;
       case '2':
-        delay(100);           // this delay is needed, the sleep function will provoke a Serial error otherwise!!
+        // this delay is needed, the sleep function will provoke a Serial error otherwise!!
+        // Without this the RX led stays lit
+        delay(100);          
         sleepWhenAsked();     // sleep function called here
         break;
       case '3':
@@ -60,7 +62,6 @@ void loop() {
         break;
     }
   }
-  
   sleepWhenIdle();
 }
 
