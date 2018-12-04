@@ -49,7 +49,7 @@ void Database::printLast(void) {
 // Needs to acquire the mutex to ensure a new record won't be written in the middle of reading all records from EEPROM
 void Database::printAll(void) {
   register int i;
-  register int offset = maxRecords - 1 + this->head;
+  register int offset = maxRecords + this->head;
   unsigned int record;
   if (xSemaphoreTake(this->mutex, portMAX_DELAY) == pdTRUE) {
   
