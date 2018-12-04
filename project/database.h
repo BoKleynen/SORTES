@@ -49,7 +49,7 @@ class Database {
     // stores the index of the last written record
     byte head;
 
-    // amount of records that have been stored in the database; only the last 128 are available
+    // amount of records that have been stored in the database; only the last 256 are available
     int nRecords;
 
     // handle to the mutex for writing to and reading from EEPROM

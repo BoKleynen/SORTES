@@ -37,6 +37,7 @@ void setup() {
   PRR1 |= _BV(PRTIM3); // Disable timer 3
   PRR1 |= _BV(4); // Disable timer 4
 
+  // create the realtimeTask with 100 words as stack and priority 3 (the highest used priority)
   xTaskCreate(realtimeTask, "Realtime Task", 100, NULL, 3, &realtimeTaskHandle);
 }
 

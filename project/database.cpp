@@ -33,7 +33,7 @@ unsigned int Database::read(byte index) {
 
 /*
  * Doesn't need to acquire the mutex since reads and writes to EEPROM can never happen at the same time
- * and the task writing records can never be interupted by a query to print the last record since it has higher priority.
+ * and the task writing records can never be interrupted by a query to print the last record (this function) since it has higher priority.
  */
 void Database::printLast(void) {
   Serial.print(F("record "));
@@ -81,15 +81,11 @@ static void Database::writeTask(void *dbArg) {
 
   for (;;) {
     if (xQueueReceive(db->queueHandle, &record, portMAX_DELAY) == pdTRUE && xSemaphoreTake(db->mutex, portMAX_DELAY) == pdTRUE) {
-      delay(9);  // not sure why but doesn't work without
       EEPROM.put(db->physicalAddress(db->head + 1), record);
       db->incrementNRecords();
       db->incrementHead();
-      delay(10); // not sure why but doesn't work without
       xSemaphoreGive(db->mutex);
     }
-    else
-      vTaskDelay(10);
   }
 }
 
