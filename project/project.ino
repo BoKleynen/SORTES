@@ -9,8 +9,6 @@
 #define wakeUpPin 2
 #define databaseReset 5
 
-#define sleepTest 8
-
 void collisionISR(void);
 unsigned int getTemp();
 
@@ -20,8 +18,7 @@ Database db;
 TaskHandle_t realtimeTaskHandle;
 
 void setup() {
-  //delay(2000);
-  //while (!Serial); // waits for serial to be available
+  while (!Serial); // waits for serial to be available
   Serial.begin(9600);
 
   pinMode(databaseReset, INPUT);
@@ -29,15 +26,14 @@ void setup() {
   pinMode(wakeUpPin, INPUT_PULLUP);
   pinMode(collisionISR, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(sleepTest, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  digitalWrite(sleepTest, LOW);
+  digitalWrite(airbagDeployement, LOW);
 
   // setup database
   db = Database(digitalRead(databaseReset) == HIGH);
   setupTimer();
 
-  attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, LOW);
+  attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
   PRR1 |= _BV(PRTIM3); // Disable timer 3
   PRR1 |= _BV(4); // Disable timer 4
 
@@ -100,24 +96,15 @@ void sleepWhenAsked() {
 
   ACSR &= ~_BV(ACIE);
   ACSR |= _BV(ACD);
-  digitalWrite(LED_BUILTIN, HIGH);
- 
-//  digitalWrite(sleepTest, HIGH);
+  
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
   taskENTER_CRITICAL();
   vPortEndScheduler(); // wdt disable
-  attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, LOW);
+  attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, RISING);
   sleep_enable();
-  // sleep_bod_disable();
   taskEXIT_CRITICAL();
   sleeping = true;
   sleep_mode();
-
-  
-  
-  // vTaskStartScheduler();
-
-  // wakeUpISR code will not be executed
 }
 
 void wakeUpISR() {
@@ -126,32 +113,29 @@ void wakeUpISR() {
 
 void wakeUp() {
   sleeping = false;
-  digitalWrite(LED_BUILTIN, LOW);
   sleep_disable(); // disable sleep...
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
-//  digitalWrite(sleepTest, LOW);
   
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
-  setupTimer();
-
-  
+  setupTimer();  
 }
 
 void collisionISR(void) {
   // Resume the suspended task.
-  if (sleeping) 
-    wakeUp();
-
   xTaskResumeFromISR(realtimeTaskHandle);
-  detachInterrupt(digitalPinToInterrupt(collisionDetector));
-  //if (xTaskResumeFromISR(realtimeTaskHandle) == pdTRUE) 
-  //taskYIELD();
+  taskYIELD();
 }
 
 static void realtimeTask(void* pvParameters) {
   vTaskSuspend(realtimeTaskHandle);
+  if (sleeping) 
+    wakeUp();
+  else
+    delay(4);
+  vTaskDelay(10);
   digitalWrite(airbagDeployement, HIGH);  
+  detachInterrupt(digitalPinToInterrupt(collisionDetector));
   vTaskDelete(realtimeTaskHandle);    // Delete the task
 }
 
