@@ -172,22 +172,18 @@ static void realtimeTask(void* pvParameters) {
  * Returns the internal temperature reading
  */
 unsigned int getTemp(void) {
-  unsigned int wADC;
-
-  // Set the internal reference and mux.
-  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX2) | _BV(MUX1) | _BV(MUX0)); // http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7766-8-bit-AVR-ATmega16U4-32U4_Datasheet.pdf
+  // Select temperature sensor by setting MUX5..0 to 100111
+  // Use internal 2.56V reference by setting REFS1..0 to 11
+  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX2) | _BV(MUX1) | _BV(MUX0));
   ADCSRB |= _BV(MUX5);
+  
   ADCSRA |= _BV(ADEN);  // enable the ADC
-
   delay(20);            // wait for voltages to become stable.
-
   ADCSRA |= _BV(ADSC);  // Start the ADC
 
   while (bit_is_set(ADCSRA, ADSC)); // Detect end-of-conversion
 
   ADCSRA &= ~_BV(ADEN); // disable the ADC
 
-  wADC = ADCL + (ADCH << 8);
-
-  return wADC;
+  return ADCL + (ADCH << 8); // calculate sum
 }
