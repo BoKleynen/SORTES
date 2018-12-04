@@ -31,7 +31,7 @@ void setup() {
 
   // setup database
   db = Database(digitalRead(databaseReset) == HIGH);
-  
+
   setupTimer();
 
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
@@ -54,7 +54,7 @@ void loop() {
       case '2':
         // this delay is needed, the sleep function will provoke a Serial error otherwise!!
         // Without this the RX led stays lit
-        delay(100);          
+        delay(100);
         sleepWhenAsked();
         break;
       case '3':
@@ -65,91 +65,114 @@ void loop() {
   sleepWhenIdle();
 }
 
+/*
+ * Configures Timer 1 to interrupt every 500 ms
+ */
 void setupTimer() {
-  // Setup timer interrupts
-  cli();//stop interrupts
-  // p104 van docs
-  //set timer1 interrupt at 2Hz
-  TCCR1A = 0;// set entire TCCR1A register to 0
-  TCCR1B = 0;// same for TCCR1B
-  TCNT1  = 0;//initialize counter value to 0
-  // set compare match register for 2hz increments
-  OCR1A = 7812;// = (16*10^6) / (2*1024) - 1 (must be <65536)
-  // turn on CTC mode
-  TCCR1B |= (1 << WGM12);
-  // Set CS12 and CS10 bits for 1024 prescaler
-  TCCR1B |= (1 << CS12) | (1 << CS10);
-  // enable timer compare interrupt
-  TIMSK1 |= (1 << OCIE1A);
-  sei();//allow interrupts
+  cli();
+
+  TCCR1A = 0; // set entire Timer 1 control register A to 0
+  TCCR1B = 0; // set entire Timer 1 control register B to 0
+
+  TCNT1  = 0; // initialize counter value to 0
+
+  OCR1A = 7812; // set compare match register: 0.5s * (16 000 000 Hz / 1024)
+  TCCR1B |= (1 << WGM12);   // turn on one of the Clear Timer on Compare (CTC) modes
+  TCCR1B |= (1 << CS12) | (1 << CS10); // Enable 1024 prescaler
+
+  TIMSK1 |= (1 << OCIE1A); // enable timer compare interrupt
+
+  sei();
 }
 
+/*
+ * ISR for the Timer 1 Output Compare A Match interrupt
+ */
 ISR(TIMER1_COMPA_vect) {
   db.write(getTemp());
 }
 
+/*
+ * Enters IDLE sleep mode
+ */
 void sleepWhenIdle() {
   set_sleep_mode(SLEEP_MODE_IDLE);
   sleep_mode();
   sleep_disable();
 }
 
+/*
+ * Enters power down sleep mode
+ */
 void sleepWhenAsked() {
   DIDR0 = 0xF3;
   DIDR2 = 0x3F;
 
   ACSR &= ~_BV(ACIE);
   ACSR |= _BV(ACD);
-  
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   taskENTER_CRITICAL();
   vPortEndScheduler(); // wdt disable
   attachInterrupt(digitalPinToInterrupt(wakeUpPin), wakeUpISR, RISING);
   sleep_enable();
   taskEXIT_CRITICAL();
   sleeping = true;
-  sleep_mode();
+  sleep_mode(); // go to sleep
 }
 
+/*
+ * ISR to wake up from sleep mode 
+ */
 void wakeUpISR() {
   wakeUp();
 }
 
+/*
+ * Disables sleep mode
+ */ 
 void wakeUp() {
   sleeping = false;
-  sleep_disable(); // disable sleep...
+  sleep_disable();
   detachInterrupt(digitalPinToInterrupt(wakeUpPin));
-  
+
   wdt_reset();
   wdt_interrupt_enable( portUSE_WDTO );
-  setupTimer();  
+  setupTimer();
 }
 
+/*
+ * ISR to send airbag signal on collision
+ */
 void collisionISR(void) {
-  // Resume the suspended task.
-  xTaskResumeFromISR(realtimeTaskHandle);
+  xTaskResumeFromISR(realtimeTaskHandle); // Resume the suspended task.
   taskYIELD();
 }
 
+/*
+ * The realtime task that deploys the airbag
+ */
 static void realtimeTask(void* pvParameters) {
-  vTaskSuspend(realtimeTaskHandle);
-  if (sleeping) 
-    wakeUp();
+  vTaskSuspend(realtimeTaskHandle); // Suspend the task
+  
+  if (sleeping)
+    wakeUp(); // wake up
   else
-    delay(4);
-  vTaskDelay(10);
-  digitalWrite(airbagDeployement, HIGH);  
+    delay(4); // small delay in case the arduino was not sleeping
+    
+  vTaskDelay(10); // Wait for 10 ticks
+  
+  digitalWrite(airbagDeployement, HIGH);
   detachInterrupt(digitalPinToInterrupt(collisionDetector));
-  vTaskDelete(realtimeTaskHandle);    // Delete the task
+  
+  vTaskDelete(realtimeTaskHandle); // Delete the task
 }
 
-// Temperature in degrees Celsius
+/*
+ * Returns the internal temperature reading
+ */
 unsigned int getTemp(void) {
   unsigned int wADC;
-  // The internal temperature has to be used
-  // with the internal reference of 1.1V.
-  // Channel 8 can not be selected with
-  // the analogRead function yet.
 
   // Set the internal reference and mux.
   ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX2) | _BV(MUX1) | _BV(MUX0)); // http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7766-8-bit-AVR-ATmega16U4-32U4_Datasheet.pdf
@@ -160,12 +183,10 @@ unsigned int getTemp(void) {
 
   ADCSRA |= _BV(ADSC);  // Start the ADC
 
-  // Detect end-of-conversion
-  while (bit_is_set(ADCSRA, ADSC));
+  while (bit_is_set(ADCSRA, ADSC)); // Detect end-of-conversion
 
-  ADCSRA &= ~_BV(ADEN);  // disable the ADC
+  ADCSRA &= ~_BV(ADEN); // disable the ADC
 
-  // Reading register "ADCW" takes care of how to read ADCL and ADCH.
   wADC = ADCL + (ADCH << 8);
 
   return wADC;
