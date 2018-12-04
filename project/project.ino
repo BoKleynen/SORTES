@@ -105,11 +105,11 @@ void sleepWhenIdle() {
  * Enters power down sleep mode
  */
 void sleepWhenAsked() {
-  DIDR0 = 0xF3;
-  DIDR2 = 0x3F;
+  DIDR0 = 0xF3; // Disable digital input buffer on the ADC7..4 and ADC1..0 pins to reduce power
+  DIDR2 = 0x3F; // Disable digital input buffer on the ADC13..8 pins to reduce power
 
-  ACSR &= ~_BV(ACIE);
-  ACSR |= _BV(ACD);
+  ACSR &= ~_BV(ACIE); // Disable interrupt before next line
+  ACSR |= _BV(ACD); // Disable analog comparator interrupt
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   taskENTER_CRITICAL();

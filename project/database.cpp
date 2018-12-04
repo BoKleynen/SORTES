@@ -90,6 +90,8 @@ static void Database::writeTask(void *dbArg) {
       db->incrementHead();
       xSemaphoreGive(db->mutex);
     }
+    else
+      vTaskDelay(4);
   }
 }
 
