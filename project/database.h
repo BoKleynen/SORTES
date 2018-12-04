@@ -63,7 +63,6 @@ class Database {
     static inline double calcTemp(unsigned int value);
 
     inline int physicalAddress(byte index);
-    inline int headAddress(void);
     void incrementHead(void);
     void incrementNRecords(void);
     unsigned int read(byte index);

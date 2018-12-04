@@ -6,6 +6,9 @@
 #define recordSize sizeof(unsigned int)
 #define queueLength 4
 
+#define tempOffset 280.31
+#define tempFactor 0.819672131 // 1 / 1.22
+
 // Public functions
 Database::Database(): head(-1), mutex(xSemaphoreCreateMutex()), queueHandle(xQueueCreate(queueLength, recordSize)), nRecords(0) {
   // create a writeTask with 100 words as stack and priority 2
@@ -89,11 +92,16 @@ static void Database::writeTask(void *dbArg) {
   }
 }
 
-// TODO: meaning of 280.31 and 1.22 use #define
+/*
+ * Converts the saved value to a temperature value in degrees Celsius
+ */
 static inline double Database::calcTemp(unsigned int value) {
-  return (value - 280.31 ) / 1.22;
+  return (value - tempOffset ) * tempFactor;
 }
 
+/*
+ * Calculates the physical address of the record at the given index
+ */
 inline int Database::physicalAddress(byte index) {
   return ((int) index << 1) + dbOffset;
 }

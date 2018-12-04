@@ -31,9 +31,12 @@ void setup() {
 
   // setup database
   db = Database(digitalRead(databaseReset) == HIGH);
+  
   setupTimer();
 
   attachInterrupt(digitalPinToInterrupt(collisionDetector), collisionISR, RISING);
+
+  // Reduce power usage
   PRR1 |= _BV(PRTIM3); // Disable timer 3
   PRR1 |= _BV(4); // Disable timer 4
 
@@ -52,7 +55,7 @@ void loop() {
         // this delay is needed, the sleep function will provoke a Serial error otherwise!!
         // Without this the RX led stays lit
         delay(100);          
-        sleepWhenAsked();     // sleep function called here
+        sleepWhenAsked();
         break;
       case '3':
         db.printAll();
