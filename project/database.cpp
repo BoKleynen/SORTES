@@ -3,11 +3,12 @@
 
 #define dbOffset 3 // sizeof(byte) + sizeof(nRecords)
 #define maxRecords 256
-#define recordSize sizeof(unsigned int)
 #define queueLength 4
-
 #define tempOffset 280.31
 #define tempFactor 0.819672131 // 1 / 1.22
+#define recordSize 2 // sizeof(unsigned int);
+#define headAddress 1022
+#define nRecordsAddress 1020
 
 // Public functions
 Database::Database(): head(-1), mutex(xSemaphoreCreateMutex()), queueHandle(xQueueCreate(queueLength, recordSize)), nRecords(0) {
@@ -103,7 +104,7 @@ static inline double Database::calcTemp(unsigned int value) {
  * Calculates the physical address of the record at the given index
  */
 inline int Database::physicalAddress(byte index) {
-  return ((int) index << 1) + dbOffset;
+  return (int) index << 1;
 }
 
 /*
@@ -111,7 +112,7 @@ inline int Database::physicalAddress(byte index) {
  */
 void Database::incrementHead(void) {
   this->head++;
-  EEPROM.put(0, this->head);
+  EEPROM.put(headAddress, this->head);
 }
 
 /*
@@ -119,5 +120,5 @@ void Database::incrementHead(void) {
  */
 void Database::incrementNRecords(void) {
   this->nRecords++;
-  EEPROM.put(1, this->nRecords);
+  EEPROM.put(nRecordsAddress, this->nRecords);
 }
